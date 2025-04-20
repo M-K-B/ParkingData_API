@@ -1,0 +1,26 @@
+.env
+# Optional: IDE/editor settings
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Deno cache (optional)
+deno.lock
+deno.jsonc
+
+# Testing output
+coverage/
+
+# Build artifacts (if you're generating any)
+dist/
+build/
