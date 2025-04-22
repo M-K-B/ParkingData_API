@@ -56,7 +56,7 @@ async function login(ctx: Context) {
     return;
   }
 
-  ctx.response.status = 201;
+  ctx.response.status = 200;
   ctx.response.body = { data };
   ctx.request.headers.get("authorization")?.replace(
     "Bearer ",
