@@ -5,5 +5,20 @@
   "imports": {
     "@oak/oak": "jsr:@oak/oak@^17.1.4",
     "@std/assert": "jsr:@std/assert@1"
-  }
+  },
+  "deploy": {
+    "project": "d51757ec-3340-4cf9-9086-3dbbf0a51ba6",
+    "exclude": [
+      "**/node_modules"
+    ],
+    "include": [],
+    "entrypoint": "main.ts"
+  },
+    "lint": {
+      "rules": {
+        "tags": ["recommended"]
+      }
+    }
+  
+  
 }
