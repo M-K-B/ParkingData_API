@@ -14,7 +14,7 @@ Return only valid JSON with:
   console.log("📤 Sending prompt to LLM:\n", prompt);
 
   const res = await fetch(
-    "https://653c-86-30-160-220.ngrok-free.app/api/generate",
+    "https://3510-86-30-160-220.ngrok-free.app/api/generate",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -22,13 +22,13 @@ Return only valid JSON with:
     },
   );
 
-  const textBody = await res.text();
-  console.log("📥 LLM raw response:\n", textBody);
+  const raw = await res.text();
+  console.log("📥 LLM raw response:\n", raw);
 
   try {
-    const json = JSON.parse(textBody);
+    const json = JSON.parse(raw);
     return JSON.parse(json.response);
   } catch (err) {
-    throw new Error(`❌ Invalid LLM JSON: ${textBody}`);
+    throw new Error(`❌ Invalid LLM JSON: ${raw}`);
   }
 }
