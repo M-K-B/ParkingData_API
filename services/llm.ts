@@ -11,10 +11,10 @@ Return only valid JSON with:
   "Times Of Operation": like "Mon - Sat 8am - 6pm" or null
 }`.trim();
 
-  console.log("Sending prompt to LLM:", prompt);
+  console.log("📤 Sending prompt to LLM:\n", prompt);
 
   const res = await fetch(
-    "https://148b-86-30-160-220.ngrok-free.app/api/generate",
+    "https://653c-86-30-160-220.ngrok-free.app/api/generate",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -22,12 +22,13 @@ Return only valid JSON with:
     },
   );
 
-  const json = await res.json();
-  console.log("LLM raw response:", json);
+  const textBody = await res.text();
+  console.log("📥 LLM raw response:\n", textBody);
 
   try {
+    const json = JSON.parse(textBody);
     return JSON.parse(json.response);
-  } catch {
-    throw new Error("Invalid LLM JSON");
+  } catch (err) {
+    throw new Error(`❌ Invalid LLM JSON: ${textBody}`);
   }
 }
