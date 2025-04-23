@@ -11,6 +11,8 @@ Return only valid JSON with:
   "Times Of Operation": like "Mon - Sat 8am - 6pm" or null
 }`.trim();
 
+  console.log("Sending prompt to LLM:", prompt);
+
   const res = await fetch(
     "https://148b-86-30-160-220.ngrok-free.app/api/generate",
     {
@@ -21,6 +23,8 @@ Return only valid JSON with:
   );
 
   const json = await res.json();
+  console.log("LLM raw response:", json);
+
   try {
     return JSON.parse(json.response);
   } catch {
