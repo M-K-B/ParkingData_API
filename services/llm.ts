@@ -1,39 +1,15 @@
 export async function parseParkingText(text: string) {
   const prompt = `
-  You are a UK parking sign parser. Input is raw OCR text from a parking sign. Your job is to extract structured JSON with 3 fields.
-  
-  OCR TEXT:
-  "${text}"
-  
-  Return ONLY valid JSON:
-  {
-    "Restriction Type": one of [
-      "Permit Parking", "Pay and Display", "Loading Bay", "Disabled Bay", "Clearway", "EV Parking", "No Loading",
-      "Controlled Parking Zone", "Single Yellow Line", "Double Yellow Line",
-      "Single Red Line", "Double Red Line", "Temporary Restriction", "School Keep Clear Zone"
-    ],
-    "Controlled Parking Zone": string like "A2" or null,
-    "Times Of Operation": string — can be one or multiple blocks like:
-      "Mon - Fri 8:30am - 6:30pm, Sat 8:30am - 1:30pm"
-  }
-  
-  Rules:
-  - Restriction Type must match the text. Use "Unknown" if no clear match.
-  - Times Of Operation can include multiple blocks, separated by commas.
-  - Accept formats like “Mon–Fri”, “Sat”, “8.30am–6.30pm”, etc.
-  - Controlled Zone (e.g. “A2”, “Z”) is optional, but include it if detected.
-  - Output MUST be parseable JSON. No comments or extra text.
-  
-  Example input:
-  "Permit holders only A2\nMon–Fri 8.30–6.30\nSat 8.30–1.30"
-  
-  Example output:
-  {
-    "Restriction Type": "Permit Parking",
-    "Controlled Parking Zone": "A2",
-    "Times Of Operation": "Mon - Fri 8:30am - 6:30pm, Sat 8:30am - 1:30pm"
-  }
-  `.trim();
+You are a parking data extractor. Extract structured JSON from this text:
+
+"${text}"
+
+Return only valid JSON with:
+{
+  "Restriction Type": one of ["Permit Parking", "Pay and Display", "Loading Bay", "Disabled Bay", "Clearway", "EV Parking", "No Loading", "Controlled Parking Zone", "Single Yellow Line", "Double Yellow Line", "Single Red Line", "Double Red Line", "Temporary Restriction", "School Keep Clear Zone"],
+  "Controlled Parking Zone": like "A2" or null,
+  "Times Of Operation": like "Mon - Sat 8am - 6pm" or null
+}`.trim();
 
   console.log("📤 Sending prompt to LLM:\n", prompt);
 
@@ -46,13 +22,13 @@ export async function parseParkingText(text: string) {
     },
   );
 
-  const raw = await res.text();
-  console.log("📥 LLM raw response:\n", raw);
+  const textBody = await res.text();
+  console.log("📥 LLM raw response:\n", textBody);
 
   try {
-    const json = JSON.parse(raw);
+    const json = JSON.parse(textBody);
     return JSON.parse(json.response);
   } catch (err) {
-    throw new Error(`❌ Invalid LLM JSON: ${raw}`);
+    throw new Error(`❌ Invalid LLM JSON: ${textBody}`);
   }
 }
