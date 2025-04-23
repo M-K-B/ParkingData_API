@@ -5,7 +5,8 @@ import {
 } from "../controllers/parkingDataController.ts";
 
 const router = new Router();
-router.get("/getAllData", await getallData);
 
+router.get("/getAllData", await getallData);
 router.post("/AddNewData", await addNewData);
+
 export default router;

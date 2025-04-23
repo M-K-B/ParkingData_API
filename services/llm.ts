@@ -1,0 +1,29 @@
+export async function parseParkingText(text: string) {
+  const prompt = `
+You are a parking data extractor. Extract structured JSON from this text:
+
+"${text}"
+
+Return only valid JSON with:
+{
+  "Restriction Type": one of ["Permit Parking", "Pay and Display", "Loading Bay", "Disabled Bay", "Clearway", "EV Parking", "No Loading", "Controlled Parking Zone", "Single Yellow Line", "Double Yellow Line", "Single Red Line", "Double Red Line", "Temporary Restriction", "School Keep Clear Zone"],
+  "Controlled Parking Zone": like "A2" or null,
+  "Times Of Operation": like "Mon - Sat 8am - 6pm" or null
+}`.trim();
+
+  const res = await fetch(
+    "https://148b-86-30-160-220.ngrok-free.app/api/generate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "phi", prompt }),
+    },
+  );
+
+  const json = await res.json();
+  try {
+    return JSON.parse(json.response);
+  } catch {
+    throw new Error("Invalid LLM JSON");
+  }
+}
