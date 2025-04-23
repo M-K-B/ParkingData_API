@@ -22,13 +22,36 @@ Return only valid JSON with:
     },
   );
 
-  const raw = await res.text();
-  console.log("📥 LLM raw response:\n", raw);
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No stream available from LLM");
+
+  const decoder = new TextDecoder();
+  let output = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    output += decoder.decode(value, { stream: true });
+  }
+
+  console.log("📥 Full raw LLM stream:\n", output);
 
   try {
-    const json = JSON.parse(raw);
-    return JSON.parse(json.response);
+    const lines = output.trim().split("\n");
+    const combined = lines
+      .map((line) => {
+        try {
+          return JSON.parse(line).response || "";
+        } catch {
+          return "";
+        }
+      })
+      .join("")
+      .trim();
+
+    console.log("🧠 Parsed combined JSON text:\n", combined);
+    return JSON.parse(combined);
   } catch (err) {
-    throw new Error(`❌ Invalid LLM JSON: ${raw}`);
+    throw new Error(`❌ Final JSON parse failed: ${err}\nRaw: ${output}`);
   }
 }
