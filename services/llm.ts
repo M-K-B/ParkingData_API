@@ -13,11 +13,14 @@ Return only valid JSON with:
 
   console.log("📤 Sending prompt to LLM:\n", prompt);
 
-  const res = await fetch("http://localhost:11434/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "phi", prompt }),
-  });
+  const res = await fetch(
+    " https://3510-86-30-160-220.ngrok-free.app/api/generate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "phi", prompt }),
+    },
+  );
 
   const reader = res.body?.getReader();
   if (!reader) throw new Error("No response body");
