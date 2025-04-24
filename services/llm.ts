@@ -11,12 +11,11 @@ You are a parking data extractor. Extract structured JSON from this OCR text:
 Return a single valid JSON object like this:
 {
   "Restriction Type": one of ["Permit Parking", "Pay and Display", "Loading Bay", "Disabled Bay", "Clearway", "EV Parking", "No Loading", "Controlled Parking Zone", "Single Yellow Line", "Double Yellow Line", "Single Red Line", "Double Red Line", "Temporary Restriction", "School Keep Clear Zone"],
-  "Controlled Parking Zone": like "A2", "B", or null,
-  "Times Of Operation": like "Mon - Fri 8:30am - 6:30pm, Sat 8:30am - 1:30pm" or null,
-  "Maximum Stay": like "1 hour", "No return within 2 hours", or null
+  "Controlled Parking Zone": a valid permit area code like "A", "A2", "B", or null,
+  "Times Of Operation": example format: "Mon - Fri 8:30am - 6:30pm, Sat 8:30am - 1:30pm", or null,
+  "Maximum Stay": example values: "20 mins", "1 hour", "No return within 2 hours", or null
 }
-Respond only with JSON.
-`.trim();
+Respond only with valid JSON and nothing else.`.trim();
 
   console.log("📤 Sending prompt to OpenRouter:", prompt);
 
@@ -27,7 +26,7 @@ Respond only with JSON.
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "deepseek/deepseek-r1:free", // Replace with your chosen model
+      model: "deepseek/deepseek-r1:free",
       messages: [
         {
           role: "system",
@@ -43,7 +42,11 @@ Respond only with JSON.
 
   try {
     const parsed = JSON.parse(raw);
-    return JSON.parse(parsed.choices[0].message.content);
+    const jsonText = parsed.choices[0].message.content.trim().replace(
+      /^```json|```$/g,
+      "",
+    ).trim();
+    return JSON.parse(jsonText);
   } catch (err) {
     throw new Error(`❌ Invalid JSON from OpenRouter: ${raw}`);
   }
