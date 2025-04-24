@@ -1,20 +1,20 @@
 export async function parseParkingText(text: string) {
   const prompt = `
-You are a parking data extractor. Extract structured JSON from the following raw sign text:
-
-"${text}"
-
-Return only **valid JSON** with these fields:
-{
-  "Restriction Type": string // One of: ["Permit Parking", "Pay and Display", "Loading Bay", "Disabled Bay", "Clearway", "EV Parking", "No Loading", "Controlled Parking Zone", "Single Yellow Line", "Double Yellow Line", "Single Red Line", "Double Red Line", "Temporary Restriction", "School Keep Clear Zone"],
-  "Controlled Parking Zone": string | null // Example: "A", "A2", "B3", etc.
-  "Times Of Operation": string | null // Example: "Mon - Fri 8:30am - 6:30pm, Sat 8:30am - 1:30pm"
-  "Valid Parking Permits": string | null // Example: "A2", "B", "C1" — extract only if permit is mentioned
-  "Maximum Stay": string | null // Examples: "1 hour", "No return within 1 hour", "40 mins", etc.
-}
-
-Avoid extra text. Do not return markdown or explanation. Only return the JSON object. If any fields are missing, set them to null.
-`.trim();
+  You are a parking restriction data extractor.
+  
+  Extract parking info from the following text and return a single-line JSON string. Do not include any extra commentary, code formatting, or line breaks. Just the raw JSON.
+  
+  TEXT:
+  "${text}"
+  
+  Only include the following keys:
+  {
+    "Restriction Type": (e.g. "Permit Parking", "EV Parking", etc.),
+    "Controlled Parking Zone": (e.g. "A", "A2", or null),
+    "Times Of Operation": (e.g. "Mon - Fri 8am - 6pm, Sat 8am - 1pm" or null),
+    "Maximum Stay": (e.g. "40 minutes", "No return within 1 hour", or null)
+  }
+  `.trim();
 
   console.log("📤 Sending prompt to LLM:\n", prompt);
 
@@ -31,12 +31,26 @@ Avoid extra text. Do not return markdown or explanation. Only return the JSON ob
     },
   );
 
+  function extractValidJson(raw: string): string {
+    // Remove markdown or code fences
+    const clean = raw
+      .replace(/```json|```/g, "")
+      .replace(/\n/g, "")
+      .trim();
+
+    // Try to match the first {...} block
+    const match = clean.match(/{.*}/);
+    if (!match) throw new Error("No JSON object found in response");
+
+    return match[0];
+  }
+
   const textBody = await res.text();
   console.log("📥 LLM raw response:\n", textBody);
 
   try {
-    const json = JSON.parse(textBody);
-    return JSON.parse(json.response);
+    const clean = extractValidJson(textBody);
+    return JSON.parse(clean);
   } catch (err) {
     throw new Error(`❌ Invalid LLM JSON: ${textBody}`);
   }
