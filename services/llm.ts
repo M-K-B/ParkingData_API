@@ -26,7 +26,7 @@ export async function parseParkingText(text: string) {
       body: JSON.stringify({
         model: "phi",
         prompt,
-        stream: true,
+        stream: false,
       }),
     },
   );
