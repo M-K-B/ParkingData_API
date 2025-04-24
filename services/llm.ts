@@ -18,7 +18,7 @@ Return a single valid JSON object like this:
 Respond only with JSON.
 `.trim();
 
-  console.log("📤 Sending prompt to Mistral:", prompt);
+  console.log("📤 Sending prompt to OpenRouter:", prompt);
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -27,7 +27,7 @@ Respond only with JSON.
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "mistralai/mistral-small-3.1-24b-instruct:free",
+      model: "deepseek/deepseek-r1:free", // Replace with your chosen model
       messages: [
         {
           role: "system",
@@ -39,12 +39,12 @@ Respond only with JSON.
   });
 
   const raw = await res.text();
-  console.log("📥 Mistral raw:", raw);
+  console.log("📥 OpenRouter raw:", raw);
 
   try {
     const parsed = JSON.parse(raw);
     return JSON.parse(parsed.choices[0].message.content);
   } catch (err) {
-    throw new Error(`❌ Invalid JSON from Mistral: ${raw}`);
+    throw new Error(`❌ Invalid JSON from OpenRouter: ${raw}`);
   }
 }
