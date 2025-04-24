@@ -1,54 +1,46 @@
 export async function parseParkingText(text: string) {
   const prompt = `
-You are a parking data extractor. Extract structured JSON from this text:
+You are a parking data extractor. Extract structured JSON from this OCR text:
 
 "${text}"
 
-Return only valid JSON with:
+Return a single valid JSON object like this:
 {
   "Restriction Type": one of ["Permit Parking", "Pay and Display", "Loading Bay", "Disabled Bay", "Clearway", "EV Parking", "No Loading", "Controlled Parking Zone", "Single Yellow Line", "Double Yellow Line", "Single Red Line", "Double Red Line", "Temporary Restriction", "School Keep Clear Zone"],
-  "Controlled Parking Zone": like "A2" or null,
-  "Times Of Operation": like "Mon - Sat 8am - 6pm" or null
-}`.trim();
+  "Controlled Parking Zone": like "A2", "B", or null,
+  "Times Of Operation": like "Mon - Fri 8:30am - 6:30pm, Sat 8:30am - 1:30pm" or null,
+  "Maximum Stay": like "1 hour", "No return within 2 hours", or null
+}
+Respond only with JSON.
+`.trim();
 
-  console.log("📤 Sending prompt to LLM:\n", prompt);
+  console.log("📤 Sending prompt to Mistral:", prompt);
 
-  const res = await fetch(
-    " https://3510-86-30-160-220.ngrok-free.app/api/generate",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "phi", prompt }),
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer 20ThOtXpBmowdDF5GVa5HNAtYhQm7jRL",
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      model: "mistralai/mistral-7b-instruct",
+      messages: [
+        {
+          role: "system",
+          content: "You extract structured data from street signs.",
+        },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
 
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("No response body");
-
-  let fullResponse = "";
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value);
-    // Match each line of JSON
-    chunk.trim().split("\n").forEach((line) => {
-      try {
-        const parsed = JSON.parse(line);
-        if (parsed.response) fullResponse += parsed.response;
-      } catch (_) {
-        // Ignore bad lines
-      }
-    });
-  }
-
-  console.log("📥 LLM stitched response:", fullResponse);
+  const raw = await res.text();
+  console.log("📥 Mistral raw:", raw);
 
   try {
-    return JSON.parse(fullResponse);
+    const parsed = JSON.parse(raw);
+    return JSON.parse(parsed.choices[0].message.content);
   } catch (err) {
-    throw new Error(`❌ Final JSON parse failed: ${fullResponse}`);
+    throw new Error(`❌ Invalid JSON from Mistral: ${raw}`);
   }
 }
