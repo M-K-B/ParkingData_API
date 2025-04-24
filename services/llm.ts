@@ -1,3 +1,6 @@
+import "jsr:@std/dotenv/load";
+
+const openrouter_key = Deno.env.get("OPEN_ROUTER_KEY");
 export async function parseParkingText(text: string) {
   const prompt = `
 You are a parking data extractor. Extract structured JSON from this OCR text:
@@ -19,7 +22,7 @@ Respond only with JSON.
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": "Bearer 20ThOtXpBmowdDF5GVa5HNAtYhQm7jRL",
+      "Authorization": `Bearer ${openrouter_key}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
