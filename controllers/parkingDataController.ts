@@ -7,6 +7,30 @@ import { supabase } from "../services/db.ts";
 type ParkingInsert =
   Database["public"]["Tables"]["parking_restrictions"]["Insert"];
 
+// Queue setup
+const taskQueue: (() => Promise<void>)[] = [];
+let processing = false;
+
+// Queue worker
+async function processQueue() {
+  if (processing || taskQueue.length === 0) return;
+
+  processing = true;
+  const task = taskQueue.shift();
+  if (task) {
+    try {
+      await task();
+    } catch (err) {
+      console.error("Task failed:", err);
+    }
+  }
+  processing = false;
+  if (taskQueue.length > 0) {
+    // Keep processing next tasks
+    processQueue();
+  }
+}
+
 async function getallData(ctx: Context) {
   console.log("GET /getAllData called");
   const { data, error } = await supabase.from("parking_restrictions").select(
@@ -28,7 +52,6 @@ async function addNewData(ctx: Context) {
     "Bearer ",
     "",
   );
-  console.log("Token:", token);
 
   if (!token) {
     ctx.response.status = 401;
@@ -36,8 +59,8 @@ async function addNewData(ctx: Context) {
     return;
   }
 
-  const supabase = getUserClient(token);
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const client = getUserClient(token);
+  const { data: { user }, error: userError } = await client.auth.getUser();
   if (userError || !user) {
     console.error("User error:", userError);
     ctx.response.status = 401;
@@ -46,51 +69,52 @@ async function addNewData(ctx: Context) {
   }
 
   const newData = await ctx.request.body.json();
-  console.log("Incoming data:", newData);
+  console.log("Queueing new incoming data:", newData);
 
-  let structured: ParkingInsert;
+  // Create a task and add to queue
+  taskQueue.push(async () => {
+    console.log("Processing queued data...");
+    let structured: ParkingInsert;
 
-  if (newData.text && !newData["Restriction Type"]) {
-    console.log("Text found, parsing via LLM...");
-    try {
-      const parsed = await parseParkingText(newData.text);
-      console.log("Parsed result:", parsed);
+    if (newData.text && !newData["Restriction Type"]) {
+      try {
+        const parsed = await parseParkingText(newData.text);
+        structured = {
+          ...parsed,
+          Latitude: newData.latitude,
+          Longitude: newData.longitude,
+          "Image URL": newData.image_url,
+          submitted_by: user.id,
+        };
+      } catch (err) {
+        console.error("LLM parse error:", err);
+        // Fail silently inside task, not affecting next tasks
+        return;
+      }
+    } else {
       structured = {
-        ...parsed,
-        Latitude: newData.latitude,
-        Longitude: newData.longitude,
-        "Image URL": newData.image_url,
+        ...newData,
         submitted_by: user.id,
       };
-    } catch (err) {
-      console.error("LLM parse error:", err);
-      ctx.response.status = 500;
-      ctx.response.body = { error: err };
-      return;
     }
-  } else {
-    console.log("Using provided structured data");
-    structured = {
-      ...newData,
-      submitted_by: user.id,
-    };
-  }
 
-  const { data, error } = await supabase
-    .from("parking_restrictions")
-    .insert([structured])
-    .select();
+    const { error: insertError } = await client
+      .from("parking_restrictions")
+      .insert([structured]);
 
-  if (error) {
-    console.error("Insert error:", error);
-    ctx.response.status = 403;
-    ctx.response.body = { error: error.message };
-    return;
-  }
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      // Fail silently inside task
+    } else {
+      console.log("Inserted structured data.");
+    }
+  });
 
-  console.log("Inserted data:", data);
-  ctx.response.status = 201;
-  ctx.response.body = { data };
+  processQueue();
+
+  // Respond immediately
+  ctx.response.status = 202; // Accepted
+  ctx.response.body = { message: "Queued for processing" };
 }
 
 export { addNewData, getallData };
