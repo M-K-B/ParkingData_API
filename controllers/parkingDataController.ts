@@ -7,27 +7,37 @@ import { supabase } from "../services/db.ts";
 type ParkingInsert =
   Database["public"]["Tables"]["parking_restrictions"]["Insert"];
 
-// Queue setup
 const taskQueue: (() => Promise<void>)[] = [];
 let processing = false;
 
-// Queue worker
 async function processQueue() {
-  if (processing || taskQueue.length === 0) return;
+  if (processing || taskQueue.length === 0) {
+    if (taskQueue.length === 0) {
+      console.log("✅ Queue is empty.");
+    }
+    return;
+  }
 
   processing = true;
+  console.log(`🔵 Starting task. Remaining queue length: ${taskQueue.length}`);
+
   const task = taskQueue.shift();
   if (task) {
     try {
       await task();
+      console.log("✅ Task completed.");
     } catch (err) {
-      console.error("Task failed:", err);
+      console.error("❌ Task failed:", err);
     }
   }
+
   processing = false;
+
   if (taskQueue.length > 0) {
-    // Keep processing next tasks
+    console.log(`⏭️ Processing next task. Tasks left: ${taskQueue.length}`);
     processQueue();
+  } else {
+    console.log("✅ All tasks completed, queue is empty.");
   }
 }
 
@@ -69,16 +79,15 @@ async function addNewData(ctx: Context) {
   }
 
   const newData = await ctx.request.body.json();
-  console.log("Queueing new incoming data:", newData);
+  console.log("📥 Queueing new incoming data:", newData);
 
-  // Create a task and add to queue
   taskQueue.push(async () => {
-    console.log("Processing queued data...");
+    console.log("⚙️ Processing queued data...");
     let structured: ParkingInsert;
 
     if (newData.text && !newData["Restriction Type"]) {
       try {
-        const parsed = await parseParkingText(newData.text);
+        const parsed = await parseParkingText(newData.text, newData.road_name);
         structured = {
           ...parsed,
           Latitude: newData.latitude,
@@ -88,7 +97,6 @@ async function addNewData(ctx: Context) {
         };
       } catch (err) {
         console.error("LLM parse error:", err);
-        // Fail silently inside task, not affecting next tasks
         return;
       }
     } else {
@@ -104,16 +112,15 @@ async function addNewData(ctx: Context) {
 
     if (insertError) {
       console.error("Insert error:", insertError);
-      // Fail silently inside task
     } else {
-      console.log("Inserted structured data.");
+      console.log("✅ Inserted structured data into database.");
     }
   });
 
+  console.log(`📝 Task added. Current queue length: ${taskQueue.length}`);
   processQueue();
 
-  // Respond immediately
-  ctx.response.status = 202; // Accepted
+  ctx.response.status = 202;
   ctx.response.body = { message: "Queued for processing" };
 }
 

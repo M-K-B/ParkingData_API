@@ -2,7 +2,7 @@ import "jsr:@std/dotenv/load";
 
 const openrouter_key = Deno.env.get("OPEN_ROUTER_KEY");
 
-export async function parseParkingText(text: string) {
+export async function parseParkingText(text: string, roadName: string) {
   const prompt = `
 You are a parking data extractor. Extract structured JSON from this OCR text:
 
@@ -46,7 +46,14 @@ Respond only with valid JSON and nothing else.`.trim();
       /^```json|```$/g,
       "",
     ).trim();
-    return JSON.parse(jsonText);
+
+    const json = JSON.parse(jsonText);
+
+    // Inject road name into the final result
+    return {
+      ...json,
+      "Road Name": roadName,
+    };
   } catch (err) {
     throw new Error(`❌ Invalid JSON from OpenRouter: ${raw}`);
   }
