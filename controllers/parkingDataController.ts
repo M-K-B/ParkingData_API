@@ -1,8 +1,8 @@
-import { getUserClient } from "../services/db.ts";
+// routes/parking.ts
+import { getUserClient, supabase } from "../services/db.ts";
 import { parseParkingText } from "../services/llm.ts";
 import { Context } from "jsr:@oak/oak";
-import { Database } from "../supabase.types.ts";
-import { supabase } from "../services/db.ts";
+import type { Database } from "../supabase.types.ts";
 
 type ParkingInsert =
   Database["public"]["Tables"]["parking_restrictions"]["Insert"];
@@ -12,40 +12,30 @@ let processing = false;
 
 async function processQueue() {
   if (processing || taskQueue.length === 0) {
-    if (taskQueue.length === 0) {
+    if (!processing && taskQueue.length === 0) {
       console.log("✅ Queue is empty.");
     }
     return;
   }
-
   processing = true;
   console.log(`🔵 Starting task. Remaining queue length: ${taskQueue.length}`);
-
-  const task = taskQueue.shift();
-  if (task) {
-    try {
-      await task();
-      console.log("✅ Task completed.");
-    } catch (err) {
-      console.error("❌ Task failed:", err);
-    }
+  const task = taskQueue.shift()!;
+  try {
+    await task();
+    console.log("✅ Task completed.");
+  } catch (err) {
+    console.error("❌ Task failed:", err);
   }
-
   processing = false;
-
-  if (taskQueue.length > 0) {
-    console.log(`⏭️ Processing next task. Tasks left: ${taskQueue.length}`);
-    processQueue();
-  } else {
-    console.log("✅ All tasks completed, queue is empty.");
-  }
+  if (taskQueue.length) processQueue();
+  else console.log("✅ All tasks completed, queue is empty.");
 }
 
-async function getallData(ctx: Context) {
+export async function getallData(ctx: Context) {
   console.log("GET /getAllData called");
-  const { data, error } = await supabase.from("parking_restrictions").select(
-    "*",
-  );
+  const { data, error } = await supabase
+    .from("parking_restrictions")
+    .select("*");
   if (error) {
     console.error("Error fetching all data:", error);
     ctx.response.status = 500;
@@ -56,13 +46,12 @@ async function getallData(ctx: Context) {
   ctx.response.body = data;
 }
 
-async function addNewData(ctx: Context) {
+export async function addNewData(ctx: Context) {
   console.log("POST /AddNewData hit");
   const token = ctx.request.headers.get("authorization")?.replace(
     "Bearer ",
     "",
   );
-
   if (!token) {
     ctx.response.status = 401;
     ctx.response.body = { error: "Missing auth token" };
@@ -86,24 +75,21 @@ async function addNewData(ctx: Context) {
     let structured: ParkingInsert;
 
     if (newData.text && !newData["Restriction Type"]) {
-      try {
-        const parsed = await parseParkingText(newData.text, newData.road_name);
-        structured = {
-          ...parsed,
-          Latitude: newData.latitude,
-          Longitude: newData.longitude,
-          "Image URL": newData.image_url,
-          submitted_by: user.id,
-        };
-      } catch (err) {
-        console.error("LLM parse error:", err);
-        return;
-      }
+      const parsed = await parseParkingText(newData.text, newData.road_name);
+      structured = {
+        ...parsed,
+        Latitude: newData.latitude,
+        Longitude: newData.longitude,
+        "Image URL": newData.image_url,
+        status: "pending",
+        submitted_by: user.id,
+      };
     } else {
       structured = {
         ...newData,
+        status: "pending",
         submitted_by: user.id,
-      };
+      } as ParkingInsert;
     }
 
     const { error: insertError } = await client
@@ -123,5 +109,3 @@ async function addNewData(ctx: Context) {
   ctx.response.status = 202;
   ctx.response.body = { message: "Queued for processing" };
 }
-
-export { addNewData, getallData };
